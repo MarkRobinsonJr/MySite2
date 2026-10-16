@@ -1,18 +1,24 @@
 const API='https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1';
 const $=s=>document.querySelector(s); const $$=s=>[...document.querySelectorAll(s)];
-const state={fixtures:[],filter:'past',search:'',match:null,summary:null,minute:0,home:null,away:null,completed:false,endMinute:null};
+const state={fixtures:[],filter:'past',search:'',match:null,summary:null,minute:0,home:null,away:null,completed:false,endMinute:null,monthPayloads:{},tableCache:{}};
 const els={listView:$('#listView'),matchView:$('#matchView'),matchList:$('#matchList'),loadingMatches:$('#loadingMatches'),listError:$('#listError'),matchLoading:$('#matchLoading'),matchContent:$('#matchContent'),matchError:$('#matchError'),back:$('#backBtn'),slider:$('#minuteSlider'),minute:$('#minuteInput')};
 
 function monthKey(offset=0){const d=new Date();d.setDate(1);d.setMonth(d.getMonth()+offset);return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`}
 function dateParts(iso){const d=new Date(iso);return {day:d.toLocaleDateString(undefined,{weekday:'short'}).toUpperCase(),date:d.toLocaleDateString(undefined,{month:'short',day:'numeric'}).toUpperCase(),time:d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}}
 function escapeHtml(s=''){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-function show(el,yes=true){el.classList.toggle('hidden',!yes)}
+function show(el,yes=true){if(el)el.classList.toggle('hidden',!yes)}
+function pad2(n){return String(n).padStart(2,'0')}
+
+async function fetchMonthScoreboard(key){
+  if(state.monthPayloads[key])return state.monthPayloads[key];
+  const r=await fetch(`${API}/scoreboard?dates=${key}`);if(!r.ok)throw new Error(`Fixture feed returned ${r.status}`);const data=await r.json();state.monthPayloads[key]=data;return data;
+}
 
 async function loadFixtures(){
   show(els.loadingMatches); show(els.listError,false); els.matchList.innerHTML='';
   try{
     const months=[-3,-2,-1,0,1].map(monthKey);
-    const payloads=await Promise.all(months.map(async m=>{const r=await fetch(`${API}/scoreboard?dates=${m}`);if(!r.ok)throw new Error(`Fixture feed returned ${r.status}`);return r.json()}));
+    const payloads=await Promise.all(months.map(fetchMonthScoreboard));
     const seen=new Set(); state.fixtures=payloads.flatMap(x=>x.events||[]).filter(e=>!seen.has(e.id)&&seen.add(e.id)).map(e=>{
       const c=e.competitions?.[0]; const home=c?.competitors?.find(x=>x.homeAway==='home'); const away=c?.competitors?.find(x=>x.homeAway==='away');
       return {id:e.id,date:e.date||c?.date,home:home?.team,away:away?.team};
@@ -33,7 +39,7 @@ function renderFixtures(){
 }
 
 async function openMatch(fixture,push=true){
-  state.match=fixture; state.summary=null; state.endMinute=null; state.completed=false; show(els.listView,false);show(els.matchView);show(els.back);show(els.matchLoading);show(els.matchContent,false);show(els.matchError,false);window.scrollTo({top:0,behavior:'instant'});
+  state.match=fixture; state.summary=null; state.endMinute=null; state.completed=false; show(els.listView,false);show(els.matchView);show(els.back);show(els.matchLoading);show(els.matchContent,false);show(els.matchError,false);resetTablePanel();window.scrollTo({top:0,behavior:'instant'});
   if(push) history.pushState({match:fixture.id},'',`#match=${fixture.id}`);
   try{
     const r=await fetch(`${API}/summary?event=${fixture.id}`);if(!r.ok)throw new Error(`Match feed returned ${r.status}`);const data=await r.json();state.summary=data;
@@ -41,7 +47,7 @@ async function openMatch(fixture,push=true){
     if(!state.home||!state.away)throw new Error('Team data is not available for this match yet.');
     state.completed=Boolean(comp?.status?.type?.completed); state.endMinute=detectEndMinute();
     const key=`catchup:${fixture.id}`; state.minute=Math.max(0,Math.min(120,Number(localStorage.getItem(key)||0)));
-    hydrateMatch(); show(els.matchLoading,false);show(els.matchContent); renderAtMinute(state.minute);
+    hydrateMatch(); show(els.matchLoading,false);show(els.matchContent); renderAtMinute(state.minute); loadMatchdayTable(comp.date,fixture.id);
   }catch(err){show(els.matchLoading,false);els.matchError.innerHTML=`<strong>Couldn't build this match timeline.</strong><br>${escapeHtml(err.message)}`;show(els.matchError)}
 }
 
@@ -59,6 +65,43 @@ function rgb(hex){const n=parseInt(hex.slice(1),16);return[(n>>16)&255,(n>>8)&25
 function brightness(hex){const [r,g,b]=rgb(hex);return .299*r+.587*g+.114*b}
 function colorDistance(a,b){const x=rgb(a),y=rgb(b);return Math.hypot(x[0]-y[0],x[1]-y[1],x[2]-y[2])}
 function pickTeamColor(team,fallback,against=null){const choices=[cleanHex(team?.color),cleanHex(team?.alternateColor)].filter(Boolean);let chosen=choices.find(c=>brightness(c)>48)||choices[0]||fallback;if(against&&colorDistance(chosen,against)<55){const alt=choices.find(c=>c!==chosen&&colorDistance(c,against)>=55&&brightness(c)>48);if(alt)chosen=alt}return chosen}
+
+function londonParts(iso){const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(iso));const get=t=>Number(parts.find(p=>p.type===t)?.value||0);return{year:get('year'),month:get('month'),day:get('day')}}
+function londonDayKey(iso){const p=londonParts(iso);return `${p.year}-${pad2(p.month)}-${pad2(p.day)}`}
+function londonDayLabel(iso){return new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/London',weekday:'short',day:'numeric',month:'short',year:'numeric'}).format(new Date(iso)).toUpperCase()}
+function seasonMonthKeys(iso){const p=londonParts(iso);const seasonStart=p.month>=8?p.year:p.year-1;const out=[];let y=seasonStart,m=8;while(y<p.year||(y===p.year&&m<=p.month)){out.push(`${y}${pad2(m)}`);m++;if(m===13){m=1;y++}}return out}
+function scoreNumber(c){const raw=typeof c?.score==='object'?(c.score.value??c.score.displayValue):c?.score;const n=Number(raw);return Number.isFinite(n)?n:null}
+function completedEvent(e){const c=e?.competitions?.[0];return Boolean(e?.status?.type?.completed||c?.status?.type?.completed||String(e?.status?.type?.name||'').includes('FINAL'))}
+function teamLogo(t){return t?.logo||t?.logos?.[0]?.href||''}
+function resetTablePanel(){show($('#tableLoading'));show($('#tableError'),false);show($('#leagueTableWrap'),false);if($('#leagueTableBody'))$('#leagueTableBody').innerHTML='';if($('#tableStatus'))$('#tableStatus').textContent='BEFORE FIRST KICKOFF'}
+
+async function loadMatchdayTable(matchIso,matchId){
+  resetTablePanel();const dayKey=londonDayKey(matchIso);const dayLabel=londonDayLabel(matchIso);$('#tableStatus').textContent=`START OF ${dayLabel.replace(/\s\d{4}$/,'')}`;
+  try{
+    let snapshot=state.tableCache[dayKey];
+    if(!snapshot){
+      const payloads=await Promise.all(seasonMonthKeys(matchIso).map(fetchMonthScoreboard));
+      const events=payloads.flatMap(p=>p.events||[]);const rows=new Map();
+      const ensure=t=>{if(!t?.id)return null;const id=String(t.id);if(!rows.has(id))rows.set(id,{id,team:t,p:0,w:0,d:0,l:0,gf:0,ga:0,gd:0,pts:0});else if(!rows.get(id).team?.logo&&t.logo)rows.get(id).team=t;return rows.get(id)};
+      events.forEach(e=>{const c=e.competitions?.[0];(c?.competitors||[]).forEach(x=>ensure(x.team))});
+      events.forEach(e=>{
+        const c=e.competitions?.[0];const eventIso=e.date||c?.date;if(!eventIso||londonDayKey(eventIso)>=dayKey||!completedEvent(e))return;
+        const home=c?.competitors?.find(x=>x.homeAway==='home');const away=c?.competitors?.find(x=>x.homeAway==='away');const hs=scoreNumber(home),as=scoreNumber(away);if(!home?.team||!away?.team||hs===null||as===null)return;
+        const h=ensure(home.team),a=ensure(away.team);h.p++;a.p++;h.gf+=hs;h.ga+=as;a.gf+=as;a.ga+=hs;
+        if(hs>as){h.w++;a.l++;h.pts+=3}else if(as>hs){a.w++;h.l++;a.pts+=3}else{h.d++;a.d++;h.pts++;a.pts++}
+      });
+      const sorted=[...rows.values()].map(r=>({...r,gd:r.gf-r.ga})).sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||(a.team.displayName||'').localeCompare(b.team.displayName||''));
+      snapshot={rows:sorted,dayLabel};state.tableCache[dayKey]=snapshot;
+    }
+    if(String(state.match?.id)!==String(matchId))return;renderLeagueTable(snapshot.rows,snapshot.dayLabel);
+  }catch(err){if(String(state.match?.id)!==String(matchId))return;show($('#tableLoading'),false);$('#tableError').textContent=`Couldn't rebuild the pre-matchday table: ${err.message}`;show($('#tableError'))}
+}
+
+function renderLeagueTable(rows,dayLabel){
+  const homeId=String(state.home?.team?.id||''),awayId=String(state.away?.team?.id||'');
+  $('#leagueTableBody').innerHTML=rows.map((r,i)=>{const cls=r.id===homeId?'home-row':r.id===awayId?'away-row':'';const gd=r.gd>0?`+${r.gd}`:String(r.gd);const gdClass=r.gd>0?'positive':r.gd<0?'negative':'';return `<tr class="${cls}"><td>${i+1}</td><td><span class="club-cell"><img src="${escapeHtml(teamLogo(r.team))}" alt=""><span>${escapeHtml(r.team.shortDisplayName||r.team.displayName||r.team.name)}</span></span></td><td>${r.p}</td><td>${r.w}</td><td>${r.d}</td><td>${r.l}</td><td class="gd ${gdClass}">${gd}</td><td class="pts">${r.pts}</td></tr>`}).join('');
+  $('#tableAsOf').textContent=`Standings at the start of ${dayLabel}. Every Premier League match on this date is excluded.`;show($('#tableLoading'),false);show($('#tableError'),false);show($('#leagueTableWrap'));
+}
 
 function clockMinute(clock){const s=clock?.displayValue||clock||'';const m=String(s).match(/(\d+)'?(?:\+(\d+))?/);if(m)return Number(m[1])+(Number(m[2])||0);const val=clock?.value;return Number.isFinite(val)?Math.floor(val/60):0}
 function eventMinute(e){return clockMinute(e.clock||e.time)}
