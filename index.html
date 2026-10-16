@@ -79,15 +79,30 @@
           </div>
         </section>
 
+        <section class="table-section">
+          <div class="section-title"><div><span>01</span><h2>Matchday table</h2></div><small id="tableStatus">BEFORE FIRST KICKOFF</small></div>
+          <div class="league-table-card glass">
+            <div id="tableLoading" class="table-loading"><span class="spinner"></span><span>Rebuilding the table as the day began…</span></div>
+            <div id="tableError" class="table-message hidden"></div>
+            <div id="leagueTableWrap" class="league-table-wrap hidden">
+              <table class="league-table">
+                <thead><tr><th>#</th><th>Club</th><th>P</th><th>GD</th><th>Pts</th></tr></thead>
+                <tbody id="leagueTableBody"></tbody>
+              </table>
+              <div id="tableAsOf" class="table-asof"></div>
+            </div>
+          </div>
+        </section>
+
         <section class="stats-section">
-          <div class="section-title"><div><span>01</span><h2>Match stats</h2></div><small id="statsStatus">THROUGH 0'</small></div>
+          <div class="section-title"><div><span>02</span><h2>Match stats</h2></div><small id="statsStatus">THROUGH 0'</small></div>
           <div class="stats-card glass">
             <div id="statsRows"></div>
           </div>
         </section>
 
         <section class="events-section">
-          <div class="section-title"><div><span>02</span><h2>What happened</h2></div><small id="eventCount"></small></div>
+          <div class="section-title"><div><span>03</span><h2>What happened</h2></div><small id="eventCount"></small></div>
           <div id="timeline" class="timeline"></div>
         </section>
 
