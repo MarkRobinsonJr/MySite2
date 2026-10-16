@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#07110e" />
+  <meta name="description" content="CatchUp — spoiler-safe Premier League match timelines." />
+  <title>CatchUp — spoiler-safe football stats</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise" aria-hidden="true"></div>
+  <header class="appbar">
+    <button id="backBtn" class="icon-btn hidden" aria-label="Back to matches">←</button>
+    <a class="brand" href="#" id="homeLink" aria-label="CatchUp home">
+      <span class="brand-ball">C</span>
+      <span><strong>CatchUp</strong><small>SPOILER-SAFE FOOTBALL</small></span>
+    </a>
+    <div class="shield"><span></span> NO SPOILERS</div>
+  </header>
+
+  <main>
+    <section id="listView" class="view list-view">
+      <div class="hero-copy">
+        <p class="kicker">PREMIER LEAGUE · TIME MACHINE</p>
+        <h1>Check the match.<br><em>Not the future.</em></h1>
+        <p>Pick a match, tell CatchUp where you are, and see only what had happened by that minute.</p>
+      </div>
+
+      <div class="list-toolbar glass">
+        <div class="segmented" role="group" aria-label="Fixture range">
+          <button class="segment active" data-filter="past">Recent</button>
+          <button class="segment" data-filter="upcoming">Upcoming</button>
+        </div>
+        <label class="search-wrap">
+          <span>⌕</span>
+          <input id="teamSearch" type="search" placeholder="Find a team" autocomplete="off" />
+        </label>
+        <button class="refresh-btn" id="refreshBtn" title="Refresh matches">↻</button>
+      </div>
+
+      <div id="loadingMatches" class="loading-card glass">
+        <span class="spinner"></span>
+        <div><strong>Loading fixtures</strong><small>Scores are being discarded.</small></div>
+      </div>
+      <div id="matchList" class="match-list" aria-live="polite"></div>
+      <div id="listError" class="error-card hidden"></div>
+
+      <footer class="source-note">Fixture and event data provided by ESPN's public soccer feed. CatchUp deliberately does not render final scores in the fixture list.</footer>
+    </section>
+
+    <section id="matchView" class="view match-view hidden">
+      <div id="matchLoading" class="match-loading glass"><span class="spinner"></span><span>Building spoiler-safe timeline…</span></div>
+      <div id="matchContent" class="hidden">
+        <div class="match-head">
+          <div class="match-meta"><span id="matchDate"></span><span>Premier League</span></div>
+          <div class="teams-row">
+            <div class="team home"><img id="homeLogo" alt="" /><div><strong id="homeName"></strong><small>HOME</small></div></div>
+            <div class="safe-score" aria-label="Score at selected minute">
+              <span id="homeScore">0</span><b>–</b><span id="awayScore">0</span>
+              <small id="scoreAsOf">AT 0'</small>
+            </div>
+            <div class="team away"><div><strong id="awayName"></strong><small>AWAY</small></div><img id="awayLogo" alt="" /></div>
+          </div>
+        </div>
+
+        <section class="time-machine glass">
+          <div class="time-heading">
+            <div><span class="label">HOW FAR HAVE YOU WATCHED?</span><p>Everything below stops here.</p></div>
+            <div class="minute-display"><input id="minuteInput" type="number" min="0" max="120" value="0" inputmode="numeric" aria-label="Minute watched" /><span>'</span></div>
+          </div>
+          <div class="slider-wrap">
+            <input id="minuteSlider" type="range" min="0" max="105" value="0" step="1" aria-label="Minute watched slider" />
+            <div class="ticks"><span>0'</span><span>HT</span><span>FT</span></div>
+          </div>
+          <div class="quick-times">
+            <button data-minute="15">15'</button><button data-minute="30">30'</button><button data-minute="45">HT</button><button data-minute="60">60'</button><button data-minute="75">75'</button><button data-minute="90">90'</button>
+          </div>
+        </section>
+
+        <section class="stats-section">
+          <div class="section-title"><div><span>01</span><h2>Match pulse</h2></div><small id="statsStatus">THROUGH 0'</small></div>
+          <div class="stats-card glass">
+            <div id="statsRows"></div>
+            <div class="momentum-wrap">
+              <div class="momentum-head"><span>ATTACK MOMENTUM</span><small>SHOT ACTIVITY · 5 MIN WINDOWS</small></div>
+              <div id="momentum" class="momentum" aria-label="Shot activity over time"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="events-section">
+          <div class="section-title"><div><span>02</span><h2>What happened</h2></div><small id="eventCount"></small></div>
+          <div id="timeline" class="timeline"></div>
+        </section>
+
+        <div id="dataCaveat" class="caveat hidden"></div>
+      </div>
+      <div id="matchError" class="error-card hidden"></div>
+    </section>
+  </main>
+
+  <template id="matchTemplate">
+    <button class="match-card glass">
+      <div class="date-col"><strong class="day"></strong><span class="date"></span><small class="time"></small></div>
+      <div class="fixture-teams">
+        <div><img class="home-logo" alt="" /><strong class="home-name"></strong></div>
+        <span class="vs">VS</span>
+        <div><img class="away-logo" alt="" /><strong class="away-name"></strong></div>
+      </div>
+      <div class="resume"><span>OPEN</span> →</div>
+    </button>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
