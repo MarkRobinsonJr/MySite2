@@ -37,6 +37,7 @@
       try {
         await loadScript('app.js');
         await loadScript('accessibility.js');
+        await loadScript('features.js');
       } catch {
         appLoaded = false;
         shell?.classList.add('hidden');
