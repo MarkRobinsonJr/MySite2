@@ -36,7 +36,7 @@
       appLoaded = true;
       try {
         await loadScript('app.js');
-        await loadScript('stoppage.js');
+        await loadScript('stoppage.js?v=20261017-2');
         await loadScript('accessibility.js');
         await loadScript('features.js');
       } catch {
