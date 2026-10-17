@@ -36,6 +36,7 @@
       appLoaded = true;
       try {
         await loadScript('app.js');
+        await loadScript('stoppage.js');
         await loadScript('accessibility.js');
         await loadScript('features.js');
       } catch {
