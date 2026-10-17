@@ -234,7 +234,7 @@
     if (htButton) {
       htButton.dataset.halfTime = 'true';
       htButton.dataset.minute = maxAdded ? `45+${maxAdded}` : '45';
-      htButton.textContent = maxAdded ? `HT · 45+${maxAdded}` : 'HT';
+      htButton.textContent = 'HT';
     }
   }
 
